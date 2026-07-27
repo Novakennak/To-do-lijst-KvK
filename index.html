@@ -91,13 +91,16 @@ input,textarea{font-family:inherit}
 .cards{padding:8px;overflow-y:auto;flex:1;min-height:8px;display:flex;flex-direction:column;gap:8px}
 .cards::-webkit-scrollbar{width:8px}
 .cards::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:8px}
-.card{background:var(--card);border-radius:8px;padding:9px 11px 9px 13px;font-size:13.5px;line-height:1.35;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:background .12s,transform .05s;word-break:break-word}
+.card{background:var(--card);border-radius:8px;padding:9px 30px 9px 13px;font-size:13.5px;line-height:1.35;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:background .12s,transform .05s;word-break:break-word}
 .card:hover{background:var(--card-hover)}
 .card:active{transform:scale(.997)}
 .card .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
 .card .note{margin-top:4px;font-size:12px;color:var(--text-dim);white-space:pre-wrap}
 .card.ghost{opacity:.35}
 .card.chosen{box-shadow:0 8px 22px rgba(0,0,0,.5)}
+.card-check{position:absolute;top:8px;right:9px;width:17px;height:17px;cursor:pointer;accent-color:var(--accent);margin:0}
+.column.done-col{flex:0 0 205px;width:205px;background:rgba(12,8,22,0.16);border-color:rgba(255,255,255,0.05)}
+.board-divider{align-self:stretch;flex:0 0 2px;width:2px;margin:0 8px;border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.32),rgba(255,255,255,0.04))}
 .add-card{margin:2px 8px 10px;padding:7px 9px;border-radius:8px;color:var(--text-faint);font-size:13px;text-align:left;width:calc(100% - 16px);transition:background .12s,color .12s;display:flex;align-items:center;gap:6px}
 .add-card:hover{background:rgba(255,255,255,0.06);color:var(--text)}
 .add-form{margin:2px 8px 10px}
@@ -233,8 +236,8 @@ input,textarea{font-family:inherit}
    Waarden vind je in je Supabase-project onder
    Project Settings -> API. Uitleg: klik op de ?-knop.
    ============================================================ */
-const SUPABASE_URL  = "https://jghapfchqycxcilvpwta.supabase.co";   // bijv. https://abcd1234.supabase.co
-const SUPABASE_KEY  = "sb_publishable_SqlGUmTUXvf_k8ps1XNSzg_BlDOcZUU";   // de "publishable" key (sb_publishable_...), of de "anon" key op oudere projecten
+const SUPABASE_URL  = "";   // bijv. https://abcd1234.supabase.co
+const SUPABASE_KEY  = "";   // de "publishable" key (sb_publishable_...), of de "anon" key op oudere projecten
 /* ============================================================ */
 
 const CARD_COLORS = [
@@ -419,14 +422,17 @@ document.getElementById("loginHelp").onclick=()=>document.getElementById("helpOv
 const boardEl=document.getElementById("board");
 let sortables=[];
 function destroySortables(){sortables.forEach(s=>{try{s.destroy()}catch(e){}});sortables=[];}
+function isDoneColumn(col){return (col.title||"").trim().toUpperCase()==="DONE";}
+function findDoneColumn(){return state.columns.find(isDoneColumn)||null;}
 function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 
 function render(){
   destroySortables();
   boardEl.innerHTML="";
   state.columns.forEach(col=>{
+    const isDone=isDoneColumn(col);
     const c=document.createElement("div");
-    c.className="column";c.dataset.col=col.id;
+    c.className="column"+(isDone?" done-col":"");c.dataset.col=col.id;
     c.innerHTML=`
       <div class="col-head" data-col="${col.id}" style="--hcolor:${col.color||'#4a4560'}">
         <input class="col-title" data-col="${col.id}" value="${esc(col.title)}" aria-label="Lijstnaam">
@@ -437,27 +443,29 @@ function render(){
       <button class="add-card" data-col="${col.id}">＋ Een kaart toevoegen</button>`;
     boardEl.appendChild(c);
     const list=c.querySelector(".cards");
-    col.cards.forEach(card=>list.appendChild(cardEl(card)));
+    col.cards.forEach(card=>list.appendChild(cardEl(card,isDone)));
     if(addingInCol===col.id) openAddForm(col.id,c);
+    if(isDone){const dv=document.createElement("div");dv.className="board-divider";boardEl.appendChild(dv);}
   });
   const add=document.createElement("button");
   add.className="add-column";add.id="addColumn";add.textContent="＋ Voeg een lijst toe";
   boardEl.appendChild(add);
   initSortables();
 }
-function cardEl(card){
+function cardEl(card,inDone){
   const d=document.createElement("div");
   d.className="card";d.dataset.card=card.id;
   const strip=card.color?`<div class="strip" style="background:${card.color}"></div>`:"";
   const note=card.note?`<div class="note">${esc(card.note)}</div>`:"";
-  d.innerHTML=strip+`<div class="ctitle">${esc(card.title)}</div>`+note;
+  d.innerHTML=strip+`<div class="ctitle">${esc(card.title)}</div>`+note+
+    `<input type="checkbox" class="card-check"${inDone?" checked":""} title="Markeer als klaar" aria-label="Markeer als klaar">`;
   return d;
 }
 function initSortables(){
   document.querySelectorAll(".cards").forEach(listEl=>{
     sortables.push(Sortable.create(listEl,{group:"cards",animation:140,ghostClass:"ghost",chosenClass:"chosen",delay:120,delayOnTouchOnly:true,touchStartThreshold:6,onEnd:syncFromDom}));
   });
-  sortables.push(Sortable.create(boardEl,{group:"cols",animation:140,handle:".col-head",draggable:".column",filter:".col-title,.col-menu-btn",delay:120,delayOnTouchOnly:true,onEnd:syncFromDom}));
+  sortables.push(Sortable.create(boardEl,{group:"cols",animation:140,handle:".col-head",draggable:".column",filter:".col-title,.col-menu-btn",delay:120,delayOnTouchOnly:true,onEnd:()=>{syncFromDom();render();}}));
 }
 function syncFromDom(){
   const byId={};state.columns.forEach(c=>c.cards.forEach(k=>byId[k.id]=k));
@@ -470,6 +478,27 @@ function syncFromDom(){
   state.columns=cols;
   document.querySelectorAll(".column").forEach(colEl=>{const cnt=colEl.querySelector(".col-count");if(cnt)cnt.textContent=colEl.querySelectorAll(".card").length;});
   persist();
+}
+function toggleDone(colId,cardId,checked){
+  const col=state.columns.find(c=>c.id===colId);if(!col)return;
+  const idx=col.cards.findIndex(k=>k.id===cardId);if(idx<0)return;
+  const card=col.cards[idx];const done=findDoneColumn();
+  if(checked){
+    if(isDoneColumn(col)){render();return;}
+    if(!done){render();return;}
+    card.prevCol=colId;
+    col.cards.splice(idx,1);
+    done.cards.unshift(card);
+    persist();render();
+  }else{
+    if(!isDoneColumn(col)){render();return;}
+    col.cards.splice(idx,1);
+    let target=card.prevCol?state.columns.find(c=>c.id===card.prevCol):null;
+    if(!target||isDoneColumn(target)) target=state.columns.find(c=>!isDoneColumn(c))||state.columns[0];
+    delete card.prevCol;
+    if(target) target.cards.push(card);
+    persist();render();
+  }
 }
 
 /* ---------------- add card ---------------- */
@@ -563,6 +592,7 @@ colMenu.querySelectorAll("button[data-act]").forEach(b=>{
 
 /* ---------------- board events ---------------- */
 boardEl.addEventListener("click",e=>{
+  if(e.target.closest(".card-check")) return;
   const addC=e.target.closest(".add-card");
   if(addC){addingInCol=addC.dataset.col;render();return;}
   const menuBtn=e.target.closest(".col-menu-btn");
@@ -575,6 +605,8 @@ boardEl.addEventListener("click",e=>{
   if(card){openCardEditor(card.closest(".column").dataset.col,card.dataset.card);}
 });
 boardEl.addEventListener("change",e=>{
+  const chk=e.target.closest(".card-check");
+  if(chk){const cel=chk.closest(".card"),colEl=chk.closest(".column");toggleDone(colEl.dataset.col,cel.dataset.card,chk.checked);return;}
   const inp=e.target.closest(".col-title");
   if(inp){const col=state.columns.find(c=>c.id===inp.dataset.col);col.title=inp.value.trim()||"Naamloos";persist();}
 });
