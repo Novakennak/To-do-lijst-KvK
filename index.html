@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>To-do bord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<style>
+:root{
+  --bg-1:#241539;--bg-2:#3d2559;--bg-3:#6b4a8a;
+  --panel:rgba(12,8,22,0.34);--panel-border:rgba(255,255,255,0.08);
+  --card:#221d31;--card-hover:#2a2540;
+  --text:#ece9f5;--text-dim:#a79fc0;--text-faint:#7a7194;
+  --accent:#b79bff;--radius:12px;--shadow:0 6px 20px rgba(0,0,0,0.28);
+  --swatch-none:#4a4560;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--text);
+  background:linear-gradient(135deg,var(--bg-1) 0%,var(--bg-2) 42%,var(--bg-3) 100%);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;overflow:hidden;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea{font-family:inherit}
+
+/* ---------- login ---------- */
+.login{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:20px}
+.login.open{display:flex}
+.login-card{
+  width:100%;max-width:360px;background:rgba(16,11,28,0.6);backdrop-filter:blur(8px);
+  border:1px solid var(--panel-border);border-radius:16px;padding:26px 24px;box-shadow:0 24px 70px rgba(0,0,0,.5);
+}
+.login-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;margin-bottom:4px}
+.login-brand .dot{width:11px;height:11px;border-radius:3px;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.login-sub{color:var(--text-dim);font-size:13px;margin:0 0 20px}
+.login .field{margin-bottom:13px}
+.login label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600}
+.login input{
+  width:100%;border-radius:9px;border:1px solid rgba(255,255,255,0.12);background:#14101f;color:var(--text);
+  padding:11px 13px;font-size:14px;outline:none;transition:border-color .15s;
+}
+.login input:focus{border-color:var(--accent)}
+.login .btn-primary{width:100%;padding:11px;border-radius:9px;background:var(--accent);color:#1a0f2e;font-weight:700;font-size:14px;margin-top:4px}
+.login .btn-primary:hover{opacity:.92}
+.login .btn-primary:disabled{opacity:.5;cursor:default}
+.login-alt{margin-top:14px;font-size:13px;color:var(--text-dim);text-align:center}
+.login-alt a{color:var(--accent);cursor:pointer;font-weight:600}
+.login-msg{font-size:12.5px;margin:10px 0 0;padding:9px 11px;border-radius:8px;display:none;line-height:1.4}
+.login-msg.err{display:block;background:rgba(224,102,102,0.14);color:#f0a0a0}
+.login-msg.info{display:block;background:rgba(183,155,255,0.14);color:#cbb8ff}
+.login-banner{
+  font-size:12px;line-height:1.45;background:rgba(224,185,85,0.14);color:#e8cf8f;
+  padding:10px 12px;border-radius:9px;margin-bottom:18px;
+}
+.login-demo{width:100%;margin-top:12px;padding:10px;border-radius:9px;background:rgba(255,255,255,0.06);color:var(--text-dim);font-size:13px;font-weight:600}
+.login-demo:hover{background:rgba(255,255,255,0.11);color:var(--text)}
+.login-help{margin-top:16px;text-align:center;font-size:12px}
+.login-help a{color:var(--text-faint);cursor:pointer;text-decoration:underline}
+
+/* ---------- top bar ---------- */
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 18px;height:54px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+.brand .dot{width:10px;height:10px;border-radius:3px;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.topbar .spacer{flex:1}
+.userchip{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-dim);padding:5px 10px;border-radius:8px;background:rgba(0,0,0,0.2)}
+.userchip b{color:var(--text);font-weight:600}
+.status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-dim);padding:5px 10px;border-radius:8px;background:rgba(0,0,0,0.2)}
+.status .sdot{width:8px;height:8px;border-radius:50%;background:#5fbf7a;transition:background .2s}
+.status.saving .sdot{background:#e0b955}
+.status.error .sdot{background:#e06666}
+.iconbtn{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:var(--text-dim);background:rgba(0,0,0,0.2);transition:background .15s,color .15s}
+.iconbtn:hover{background:rgba(255,255,255,0.1);color:var(--text)}
+
+/* ---------- board ---------- */
+.app{display:none;flex-direction:column;height:100vh}
+.app.open{display:flex}
+.board{display:flex;gap:12px;padding:4px 18px 22px;flex:1;overflow-x:auto;overflow-y:hidden;align-items:flex-start;scroll-snap-type:x proximity}
+.column{flex:0 0 272px;width:272px;max-height:100%;background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);display:flex;flex-direction:column;scroll-snap-align:start;box-shadow:var(--shadow)}
+.col-head{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:var(--radius) var(--radius) 0 0;cursor:grab;--hcolor:#4a4560;background:var(--hcolor)}
+.col-head:active{cursor:grabbing}
+.col-title{flex:1;font-weight:600;font-size:13.5px;line-height:1.25;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);border:none;background:transparent;padding:2px 4px;border-radius:5px;min-width:0}
+.col-title:focus{outline:none;background:rgba(0,0,0,0.22)}
+.col-count{font-size:11px;color:rgba(255,255,255,0.75);min-width:18px;text-align:center;font-weight:600}
+.col-menu-btn{color:rgba(255,255,255,0.8);padding:2px 6px;border-radius:5px;font-size:16px;line-height:1}
+.col-menu-btn:hover{background:rgba(0,0,0,0.22)}
+.cards{padding:8px;overflow-y:auto;flex:1;min-height:8px;display:flex;flex-direction:column;gap:8px}
+.cards::-webkit-scrollbar{width:8px}
+.cards::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:8px}
+.card{background:var(--card);border-radius:8px;padding:9px 11px 9px 13px;font-size:13.5px;line-height:1.35;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:background .12s,transform .05s;word-break:break-word}
+.card:hover{background:var(--card-hover)}
+.card:active{transform:scale(.997)}
+.card .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
+.card .note{margin-top:4px;font-size:12px;color:var(--text-dim);white-space:pre-wrap}
+.card.ghost{opacity:.35}
+.card.chosen{box-shadow:0 8px 22px rgba(0,0,0,.5)}
+.add-card{margin:2px 8px 10px;padding:7px 9px;border-radius:8px;color:var(--text-faint);font-size:13px;text-align:left;width:calc(100% - 16px);transition:background .12s,color .12s;display:flex;align-items:center;gap:6px}
+.add-card:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+.add-form{margin:2px 8px 10px}
+.add-form textarea{width:100%;resize:none;border-radius:8px;border:1px solid var(--accent);background:var(--card);color:var(--text);padding:9px 11px;font-size:13.5px;line-height:1.35;outline:none;min-height:52px}
+.add-actions{display:flex;gap:8px;margin-top:7px;align-items:center}
+.btn{padding:7px 13px;border-radius:7px;font-size:13px;font-weight:600;transition:opacity .15s,background .15s}
+.btn-primary{background:var(--accent);color:#1a0f2e}
+.btn-primary:hover{opacity:.9}
+.btn-ghost{color:var(--text-dim)}
+.btn-ghost:hover{color:var(--text)}
+.add-column{flex:0 0 272px;width:272px;background:rgba(255,255,255,0.06);border:1px dashed rgba(255,255,255,0.18);border-radius:var(--radius);padding:11px 13px;color:var(--text-dim);font-size:13.5px;font-weight:500;text-align:left;transition:background .15s,color .15s}
+.add-column:hover{background:rgba(255,255,255,0.11);color:var(--text)}
+
+/* ---------- popovers / modal ---------- */
+.overlay{position:fixed;inset:0;background:rgba(10,6,18,0.55);display:none;z-index:40;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(2px)}
+.overlay.open{display:flex}
+.modal{background:#1c1729;border:1px solid var(--panel-border);border-radius:14px;width:100%;max-width:440px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.5);max-height:88vh;overflow:auto}
+.modal h3{margin:0 0 14px;font-size:15px;font-weight:700}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600}
+.field input[type=text],.field textarea{width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#14101f;color:var(--text);padding:10px 12px;font-size:14px;outline:none}
+.field input[type=text]:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:64px;line-height:1.4}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.swatch{width:28px;height:28px;border-radius:7px;border:2px solid transparent;transition:transform .1s}
+.swatch:hover{transform:scale(1.08)}
+.swatch.sel{border-color:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.4) inset}
+.swatch.none{background:var(--swatch-none);position:relative}
+.swatch.none::after{content:"";position:absolute;left:5px;right:5px;top:12px;height:2px;background:#8f89a8;transform:rotate(-45deg)}
+.modal-actions{display:flex;gap:9px;justify-content:space-between;align-items:center;margin-top:6px}
+.modal-actions .right{display:flex;gap:9px}
+.btn-danger{color:#e57b7b}.btn-danger:hover{color:#ff9a9a}
+.menu{position:fixed;z-index:50;background:#1c1729;border:1px solid var(--panel-border);border-radius:10px;padding:6px;min-width:170px;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none}
+.menu.open{display:block}
+.menu button{display:flex;width:100%;text-align:left;padding:8px 10px;border-radius:7px;font-size:13px;color:var(--text);gap:8px;align-items:center}
+.menu button:hover{background:rgba(255,255,255,0.08)}
+.menu .sep{height:1px;background:var(--panel-border);margin:5px 2px}
+.help-body{font-size:13px;line-height:1.5;color:var(--text-dim)}
+.help-body code{background:#14101f;padding:1px 6px;border-radius:5px;color:#d9cffb;font-size:12px}
+.help-body b{color:var(--text)}
+.help-body ol{margin:8px 0;padding-left:20px}
+.help-body li{margin-bottom:7px}
+.help-body pre{background:#14101f;padding:10px;border-radius:8px;overflow:auto;font-size:11px;color:#d9cffb;line-height:1.45;margin:8px 0}
+
+@media (max-width:640px){
+  .column,.add-column{flex-basis:82vw;width:82vw}
+  .board{gap:10px;padding:4px 12px 20px}
+  .topbar{padding:10px 12px}
+  .brand span{display:none}
+  .userchip{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div class="login open" id="login">
+  <div class="login-card">
+    <div class="login-brand"><span class="dot"></span>To-do bord</div>
+    <p class="login-sub" id="loginSub">Log in om je bord op al je apparaten te zien.</p>
+    <div class="login-banner" id="loginBanner" style="display:none"></div>
+    <div class="field">
+      <label for="luser">E-mailadres</label>
+      <input id="luser" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="jij@voorbeeld.nl">
+    </div>
+    <div class="field">
+      <label for="lpass">Wachtwoord</label>
+      <input id="lpass" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" id="loginBtn">Inloggen</button>
+    <p class="login-msg" id="loginMsg"></p>
+    <div class="login-alt" id="loginAlt">Nog geen account? <a id="toSignup">Account aanmaken</a></div>
+    <button class="login-demo" id="demoBtn" style="display:none">Bekijk demo zonder login</button>
+    <div class="login-help"><a id="loginHelp">Hoe stel ik de database in?</a></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span><span>To-do bord</span></div>
+    <div class="spacer"></div>
+    <div class="userchip" id="userchip"></div>
+    <div class="status" id="status"><span class="sdot"></span><span id="statusText">Gesynchroniseerd</span></div>
+    <button class="iconbtn" id="helpBtn" title="Hosting &amp; database" aria-label="Help">?</button>
+    <button class="iconbtn" id="logoutBtn" title="Uitloggen" aria-label="Uitloggen">⎋</button>
+  </div>
+  <div class="board" id="board"></div>
+</div>
+
+<!-- card editor -->
+<div class="overlay" id="cardOverlay">
+  <div class="modal" role="dialog" aria-label="Kaart bewerken">
+    <h3>Kaart bewerken</h3>
+    <div class="field"><label for="cardTitle">Titel</label><textarea id="cardTitle" rows="2"></textarea></div>
+    <div class="field"><label for="cardNote">Notitie (optioneel)</label><textarea id="cardNote" rows="3"></textarea></div>
+    <div class="field"><label>Kleur</label><div class="swatches" id="cardSwatches"></div></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="cardDelete">Verwijderen</button>
+      <div class="right">
+        <button class="btn btn-ghost" id="cardCancel">Annuleren</button>
+        <button class="btn btn-primary" id="cardSave">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- help -->
+<div class="overlay" id="helpOverlay">
+  <div class="modal" role="dialog" aria-label="Database instellen">
+    <h3>Database &amp; synchronisatie instellen</h3>
+    <div class="help-body" id="helpBody"></div>
+    <div class="modal-actions"><div></div><div class="right"><button class="btn btn-primary" id="helpClose">Sluiten</button></div></div>
+  </div>
+</div>
+
+<!-- column menu -->
+<div class="menu" id="colMenu">
+  <button data-act="rename">✏️ Naam wijzigen</button>
+  <div class="sep"></div>
+  <div style="font-size:11px;color:var(--text-faint);padding:2px 10px 4px">Koptekstkleur</div>
+  <div class="swatches" id="colSwatches" style="padding:6px 8px 8px"></div>
+  <div class="sep"></div>
+  <button data-act="clear">🧹 Kaarten wissen</button>
+  <button data-act="delete" style="color:#e57b7b">🗑️ Lijst verwijderen</button>
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURATIE  — vul dit in en de login + synchronisatie werkt.
+   Leeg laten = alleen een lokale demo op dit apparaat.
+   Waarden vind je in je Supabase-project onder
+   Project Settings -> API. Uitleg: klik op de ?-knop.
+   ============================================================ */
+const SUPABASE_URL  = "https://jghapfchqycxcilvpwta.supabase.co";   // bijv. https://abcd1234.supabase.co
+const SUPABASE_KEY  = "sb_publishable_SqlGUmTUXvf_k8ps1XNSzg_BlDOcZUU";   // de "publishable" key (sb_publishable_...), of de "anon" key op oudere projecten
+/* ============================================================ */
+
+const CARD_COLORS = [
+  {name:"none",val:null},{name:"rood",val:"#e0574d"},{name:"oranje",val:"#e0894d"},
+  {name:"geel",val:"#e0c04d"},{name:"groen",val:"#5fbf7a"},{name:"teal",val:"#3fbfb0"},
+  {name:"blauw",val:"#4d8fe0"},{name:"indigo",val:"#6b6be0"},{name:"paars",val:"#a86be0"},
+  {name:"roze",val:"#e06bb0"},{name:"grijs",val:"#8f89a8"},
+];
+const HEAD_COLORS = ["#4c7a34","#9a8a2a","#a5501f","#2f7d5b","#2b5f8a","#7a2233","#5a3d8a","#3a3550","#5d4a2a","#2a4d5d"];
+const uid = () => Math.random().toString(36).slice(2,10);
+
+function seed(){
+  const mk=(t,c)=>({id:uid(),title:t,note:"",color:c});
+  return {columns:[
+    {id:uid(),title:"DONE",color:"#4c7a34",cards:[mk("Ramazan reminder","#5fbf7a")]},
+    {id:uid(),title:"Maandag",color:"#9a8a2a",cards:[
+      mk("Confluence vullen [Algoritme Inventarisatie]","#4d8fe0"),
+      mk("Confluence vullen [Ethische Commissie]","#a86be0"),
+      mk("IB&P Voorbereiden","#e0c04d"),
+      mk("Overdracht survey maken","#3fbfb0")]},
+    {id:uid(),title:"Dinsdag",color:"#a5501f",cards:[mk("Misali reminder → nota","#e0894d")]},
+    {id:uid(),title:"Woensdag",color:"#2f7d5b",cards:[]},
+    {id:uid(),title:"Donderdag",color:"#2b5f8a",cards:[]},
+    {id:uid(),title:"Vrijdag",color:"#7a2233",cards:[]},
+    {id:uid(),title:"Zaterdag",color:"#5a3d8a",cards:[]},
+    {id:uid(),title:"Zondag",color:"#5a3d8a",cards:[]},
+    {id:uid(),title:"Maandag (volgende week)",color:"#3a3550",cards:[]},
+    {id:uid(),title:"Dinsdag (volgende week)",color:"#3a3550",cards:[]},
+    {id:uid(),title:"Woensdag (volgende week)",color:"#3a3550",cards:[]},
+    {id:uid(),title:"Donderdag (volgende week)",color:"#3a3550",cards:[]},
+    {id:uid(),title:"Vrijdag (volgende week)",color:"#3a3550",cards:[]},
+    {id:uid(),title:"Zaterdag (volgende week)",color:"#3a3550",cards:[]},
+    {id:uid(),title:"Zondag (volgende week)",color:"#3a3550",cards:[]},
+  ]};
+}
+
+/* ---------------- globals ---------------- */
+const CONFIGURED = !!(SUPABASE_URL && SUPABASE_KEY);
+let sb = null, mode = null, userId = null, userName = null;
+let state = seed();
+let lastRemoteTs = null, saveTimer = null, addingInCol = null, pollTimer = null;
+const LS_KEY = "todo_board_v1";
+let memFallback = null;
+
+/* ---------------- storage helpers ---------------- */
+function localLoad(){try{const r=localStorage.getItem(LS_KEY);return r?JSON.parse(r):null;}catch(e){return memFallback;}}
+function localSave(s){try{localStorage.setItem(LS_KEY,JSON.stringify(s));}catch(e){memFallback=JSON.parse(JSON.stringify(s));}}
+
+function setStatus(kind,text){
+  const el=document.getElementById("status");
+  el.className="status"+(kind==="saving"?" saving":kind==="error"?" error":"");
+  document.getElementById("statusText").textContent=text;
+}
+
+async function cloudLoad(){
+  const {data,error}=await sb.from("boards").select("data,updated_at").eq("user_id",userId).maybeSingle();
+  if(error) throw error;
+  if(data){lastRemoteTs=data.updated_at;return data.data;}
+  return null;
+}
+async function cloudSave(s){
+  const ts=new Date().toISOString();
+  const {error}=await sb.from("boards").upsert({user_id:userId,data:s,updated_at:ts},{onConflict:"user_id"});
+  if(error) throw error;
+  lastRemoteTs=ts;
+}
+
+function persist(){
+  if(mode==="demo"){localSave(state);setStatus("ok","Demo (lokaal)");return;}
+  localSave(state); // lokale cache
+  setStatus("saving","Opslaan…");
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    try{await cloudSave(state);setStatus("ok","Gesynchroniseerd");}
+    catch(e){setStatus("error","Fout bij opslaan");console.error(e);}
+    saveTimer=null;
+  },700);
+}
+
+function startPolling(){
+  clearInterval(pollTimer);
+  if(mode!=="cloud") return;
+  pollTimer=setInterval(async()=>{
+    if(saveTimer||document.querySelector(".overlay.open")||addingInCol) return;
+    try{
+      const {data,error}=await sb.from("boards").select("data,updated_at").eq("user_id",userId).maybeSingle();
+      if(error||!data) return;
+      if(data.updated_at!==lastRemoteTs){lastRemoteTs=data.updated_at;state=data.data;localSave(state);render();}
+    }catch(e){}
+  },7000);
+}
+
+/* ---------------- auth flow ---------------- */
+const loginEl=document.getElementById("login");
+const appEl=document.getElementById("app");
+const msgEl=document.getElementById("loginMsg");
+let signupMode=false;
+
+function toEmail(name){ return name.trim().toLowerCase(); }
+function showMsg(kind,text){msgEl.className="login-msg "+kind;msgEl.textContent=text;}
+function clearMsg(){msgEl.className="login-msg";msgEl.textContent="";}
+
+async function doLogin(){
+  const name=document.getElementById("luser").value.trim();
+  const pass=document.getElementById("lpass").value;
+  if(!name||!pass){showMsg("err","Vul een e-mailadres en wachtwoord in.");return;}
+  if(!CONFIGURED){showMsg("err","Er is nog geen database ingesteld. Klik op \"Hoe stel ik de database in?\".");return;}
+  const btn=document.getElementById("loginBtn");btn.disabled=true;btn.textContent=signupMode?"Aanmaken…":"Inloggen…";
+  const email=toEmail(name);
+  try{
+    let res;
+    if(signupMode) res=await sb.auth.signUp({email,password:pass});
+    else res=await sb.auth.signInWithPassword({email,password:pass});
+    if(res.error) throw res.error;
+    if(signupMode && !res.data.session){
+      showMsg("info","Account aangemaakt. Zet in Supabase \"Confirm email\" uit en log daarna in.");
+      btn.disabled=false;btn.textContent="Inloggen";signupMode=false;return;
+    }
+    const sess=res.data.session, usr=res.data.user;
+    userId=(sess&&sess.user&&sess.user.id)||(usr&&usr.id)||userId;
+    userName=email.split("@")[0]; enterApp("cloud");
+  }catch(e){
+    const m=(e&&e.message)||"Onbekende fout";
+    if(/invalid login/i.test(m)) showMsg("err","E-mailadres of wachtwoord klopt niet.");
+    else if(/already registered/i.test(m)) showMsg("err","Dit account bestaat al. Log gewoon in.");
+    else if(/at least/i.test(m)) showMsg("err","Wachtwoord moet minstens 6 tekens zijn.");
+    else showMsg("err",m);
+    btn.disabled=false;btn.textContent=signupMode?"Account aanmaken":"Inloggen";
+  }
+}
+
+async function enterApp(m){
+  mode=m; clearMsg();
+  loginEl.classList.remove("open");
+  appEl.classList.add("open");
+  document.getElementById("logoutBtn").style.display = (m==="cloud")?"grid":"grid";
+  const chip=document.getElementById("userchip");
+  chip.innerHTML = (m==="cloud") ? `<b>${esc(userName||"account")}</b>` : `Demo`;
+  setStatus("ok", m==="cloud"?"Laden…":"Demo (lokaal)");
+  if(m==="cloud"){
+    try{
+      const d=await cloudLoad();
+      if(d){state=d;} else {state=seed();await cloudSave(state);}
+      setStatus("ok","Gesynchroniseerd");
+    }catch(e){
+      console.error(e);
+      state=localLoad()||seed();
+      setStatus("error","Offline — lokale kopie");
+    }
+  }else{
+    state=localLoad()||seed();
+  }
+  render();
+  startPolling();
+}
+
+async function doLogout(){
+  clearInterval(pollTimer);
+  if(sb){try{await sb.auth.signOut();}catch(e){}}
+  mode=null;userId=null;userName=null;
+  appEl.classList.remove("open");
+  document.getElementById("lpass").value="";
+  loginEl.classList.add("open");
+}
+
+/* login UI wiring */
+document.getElementById("loginBtn").onclick=doLogin;
+document.getElementById("lpass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+document.getElementById("luser").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("lpass").focus();});
+function toggleSignup(){
+  signupMode=!signupMode;clearMsg();
+  document.getElementById("loginBtn").textContent=signupMode?"Account aanmaken":"Inloggen";
+  document.getElementById("loginSub").textContent=signupMode?"Kies een e-mailadres en wachtwoord.":"Log in om je bord op al je apparaten te zien.";
+  document.getElementById("loginAlt").innerHTML=signupMode?'Al een account? <a id="toSignup">Inloggen</a>':'Nog geen account? <a id="toSignup">Account aanmaken</a>';
+}
+document.getElementById("loginAlt").addEventListener("click",e=>{if(e.target.id==="toSignup")toggleSignup();});
+document.getElementById("demoBtn").onclick=()=>{userName=null;enterApp("demo");};
+document.getElementById("logoutBtn").onclick=doLogout;
+document.getElementById("loginHelp").onclick=()=>document.getElementById("helpOverlay").classList.add("open");
+
+/* ---------------- board rendering ---------------- */
+const boardEl=document.getElementById("board");
+let sortables=[];
+function destroySortables(){sortables.forEach(s=>{try{s.destroy()}catch(e){}});sortables=[];}
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+function render(){
+  destroySortables();
+  boardEl.innerHTML="";
+  state.columns.forEach(col=>{
+    const c=document.createElement("div");
+    c.className="column";c.dataset.col=col.id;
+    c.innerHTML=`
+      <div class="col-head" data-col="${col.id}" style="--hcolor:${col.color||'#4a4560'}">
+        <input class="col-title" data-col="${col.id}" value="${esc(col.title)}" aria-label="Lijstnaam">
+        <span class="col-count">${col.cards.length}</span>
+        <button class="col-menu-btn" data-col="${col.id}" aria-label="Lijstmenu">⋯</button>
+      </div>
+      <div class="cards" data-col="${col.id}"></div>
+      <button class="add-card" data-col="${col.id}">＋ Een kaart toevoegen</button>`;
+    boardEl.appendChild(c);
+    const list=c.querySelector(".cards");
+    col.cards.forEach(card=>list.appendChild(cardEl(card)));
+    if(addingInCol===col.id) openAddForm(col.id,c);
+  });
+  const add=document.createElement("button");
+  add.className="add-column";add.id="addColumn";add.textContent="＋ Voeg een lijst toe";
+  boardEl.appendChild(add);
+  initSortables();
+}
+function cardEl(card){
+  const d=document.createElement("div");
+  d.className="card";d.dataset.card=card.id;
+  const strip=card.color?`<div class="strip" style="background:${card.color}"></div>`:"";
+  const note=card.note?`<div class="note">${esc(card.note)}</div>`:"";
+  d.innerHTML=strip+`<div class="ctitle">${esc(card.title)}</div>`+note;
+  return d;
+}
+function initSortables(){
+  document.querySelectorAll(".cards").forEach(listEl=>{
+    sortables.push(Sortable.create(listEl,{group:"cards",animation:140,ghostClass:"ghost",chosenClass:"chosen",delay:120,delayOnTouchOnly:true,touchStartThreshold:6,onEnd:syncFromDom}));
+  });
+  sortables.push(Sortable.create(boardEl,{group:"cols",animation:140,handle:".col-head",draggable:".column",filter:".col-title,.col-menu-btn",delay:120,delayOnTouchOnly:true,onEnd:syncFromDom}));
+}
+function syncFromDom(){
+  const byId={};state.columns.forEach(c=>c.cards.forEach(k=>byId[k.id]=k));
+  const cols=[];
+  document.querySelectorAll(".column").forEach(colEl=>{
+    const id=colEl.dataset.col;const meta=state.columns.find(c=>c.id===id);
+    const cards=[...colEl.querySelectorAll(".card")].map(el=>byId[el.dataset.card]).filter(Boolean);
+    cols.push({id,title:meta.title,color:meta.color,cards});
+  });
+  state.columns=cols;
+  document.querySelectorAll(".column").forEach(colEl=>{const cnt=colEl.querySelector(".col-count");if(cnt)cnt.textContent=colEl.querySelectorAll(".card").length;});
+  persist();
+}
+
+/* ---------------- add card ---------------- */
+function openAddForm(colId,colElement){
+  const colEl=colElement||document.querySelector(`.column[data-col="${colId}"]`);
+  if(!colEl) return;
+  const btn=colEl.querySelector(".add-card");
+  const form=document.createElement("div");
+  form.className="add-form";
+  form.innerHTML=`<textarea placeholder="Titel van de kaart…" aria-label="Nieuwe kaart"></textarea>
+    <div class="add-actions"><button class="btn btn-primary" data-add-save>Toevoegen</button>
+    <button class="btn btn-ghost" data-add-cancel>Annuleren</button></div>`;
+  btn.replaceWith(form);
+  const ta=form.querySelector("textarea");ta.focus();
+  const commit=()=>{
+    const v=ta.value.trim();
+    if(v){state.columns.find(c=>c.id===colId).cards.push({id:uid(),title:v,note:"",color:null});persist();}
+    addingInCol=v?colId:null;render();
+    if(v){const again=document.querySelector(`.column[data-col="${colId}"] .add-form textarea`);if(again)again.focus();}
+  };
+  form.querySelector("[data-add-save]").onclick=commit;
+  form.querySelector("[data-add-cancel]").onclick=()=>{addingInCol=null;render();};
+  ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();commit();}if(e.key==="Escape"){addingInCol=null;render();}};
+}
+
+/* ---------------- card editor ---------------- */
+let editing=null,editColor=null;
+const cardOverlay=document.getElementById("cardOverlay");
+const cardTitle=document.getElementById("cardTitle");
+const cardNote=document.getElementById("cardNote");
+function buildSwatches(container,current,onPick){
+  container.innerHTML="";
+  CARD_COLORS.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="swatch"+(c.val===null?" none":"")+((c.val===current)?" sel":"");
+    if(c.val)b.style.background=c.val;b.title=c.name;
+    b.onclick=()=>{onPick(c.val);[...container.children].forEach(x=>x.classList.remove("sel"));b.classList.add("sel");};
+    container.appendChild(b);
+  });
+}
+function openCardEditor(colId,cardId){
+  const card=state.columns.find(c=>c.id===colId).cards.find(k=>k.id===cardId);
+  editing={colId,cardId};editColor=card.color;
+  cardTitle.value=card.title;cardNote.value=card.note||"";
+  buildSwatches(document.getElementById("cardSwatches"),editColor,v=>editColor=v);
+  cardOverlay.classList.add("open");cardTitle.focus();
+}
+function closeCardEditor(){cardOverlay.classList.remove("open");editing=null;}
+document.getElementById("cardSave").onclick=()=>{
+  if(!editing)return;
+  const card=state.columns.find(c=>c.id===editing.colId).cards.find(k=>k.id===editing.cardId);
+  const t=cardTitle.value.trim();if(!t){closeCardEditor();return;}
+  card.title=t;card.note=cardNote.value.trim();card.color=editColor;
+  persist();render();closeCardEditor();
+};
+document.getElementById("cardCancel").onclick=closeCardEditor;
+document.getElementById("cardDelete").onclick=()=>{
+  if(!editing)return;
+  const col=state.columns.find(c=>c.id===editing.colId);
+  col.cards=col.cards.filter(k=>k.id!==editing.cardId);
+  persist();render();closeCardEditor();
+};
+cardOverlay.addEventListener("click",e=>{if(e.target===cardOverlay)closeCardEditor();});
+
+/* ---------------- column menu ---------------- */
+const colMenu=document.getElementById("colMenu");let menuColId=null;
+function openColMenu(colId,x,y){
+  menuColId=colId;const col=state.columns.find(c=>c.id===colId);
+  const sc=document.getElementById("colSwatches");sc.innerHTML="";
+  HEAD_COLORS.forEach(hc=>{
+    const b=document.createElement("button");
+    b.className="swatch"+(hc===col.color?" sel":"");b.style.background=hc;b.title="koptekstkleur";
+    b.onclick=()=>{col.color=hc;persist();render();closeColMenu();};
+    sc.appendChild(b);
+  });
+  colMenu.classList.add("open");
+  const mw=colMenu.offsetWidth,mh=colMenu.offsetHeight;
+  colMenu.style.left=Math.min(x,window.innerWidth-mw-8)+"px";
+  colMenu.style.top=Math.min(y,window.innerHeight-mh-8)+"px";
+}
+function closeColMenu(){colMenu.classList.remove("open");menuColId=null;}
+colMenu.querySelectorAll("button[data-act]").forEach(b=>{
+  b.onclick=()=>{
+    const col=state.columns.find(c=>c.id===menuColId);const act=b.dataset.act;
+    if(act==="rename"){const inp=document.querySelector(`.col-title[data-col="${menuColId}"]`);closeColMenu();if(inp){inp.focus();inp.select();}return;}
+    if(act==="clear"){if(col.cards.length&&confirm(`Alle kaarten uit "${col.title}" verwijderen?`)){col.cards=[];persist();render();}}
+    if(act==="delete"){if(confirm(`Lijst "${col.title}" verwijderen?`)){state.columns=state.columns.filter(c=>c.id!==menuColId);persist();render();}}
+    closeColMenu();
+  };
+});
+
+/* ---------------- board events ---------------- */
+boardEl.addEventListener("click",e=>{
+  const addC=e.target.closest(".add-card");
+  if(addC){addingInCol=addC.dataset.col;render();return;}
+  const menuBtn=e.target.closest(".col-menu-btn");
+  if(menuBtn){const r=menuBtn.getBoundingClientRect();openColMenu(menuBtn.dataset.col,r.left-140,r.bottom+6);return;}
+  if(e.target.closest("#addColumn")){
+    state.columns.push({id:uid(),title:"Nieuwe lijst",color:"#3a3550",cards:[]});persist();render();
+    const inp=document.querySelector(".column:last-of-type .col-title");if(inp){inp.focus();inp.select();}return;
+  }
+  const card=e.target.closest(".card");
+  if(card){openCardEditor(card.closest(".column").dataset.col,card.dataset.card);}
+});
+boardEl.addEventListener("change",e=>{
+  const inp=e.target.closest(".col-title");
+  if(inp){const col=state.columns.find(c=>c.id===inp.dataset.col);col.title=inp.value.trim()||"Naamloos";persist();}
+});
+boardEl.addEventListener("keydown",e=>{
+  const inp=e.target.closest(".col-title");if(inp&&e.key==="Enter"){e.preventDefault();inp.blur();}
+});
+document.addEventListener("click",e=>{
+  if(colMenu.classList.contains("open")&&!e.target.closest("#colMenu")&&!e.target.closest(".col-menu-btn"))closeColMenu();
+});
+
+/* ---------------- help ---------------- */
+document.getElementById("helpBody").innerHTML=`
+  <p>De app heeft één bestand plus een gratis database (Supabase). Zo koppel je ze:</p>
+  <ol>
+    <li>Maak een gratis project op <b>supabase.com</b>.</li>
+    <li>Open de <b>SQL Editor</b> en voer dit uit:
+      <pre>create table boards (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb,
+  updated_at timestamptz default now()
+);
+alter table boards enable row level security;
+create policy "eigen bord" on boards
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);</pre></li>
+    <li>Maak je account rechtstreeks aan. Ga naar <b>Authentication → Users</b>, klik <b>Add user → Create new user</b>. Vul je eigen e-mailadres in, kies een wachtwoord, en zet <b>Auto Confirm User</b> aan. Klik Create. Zo is geen bevestigingsmail nodig.</li>
+    <li>Ga naar <b>Project Settings → API Keys</b> en kopieer je <code>Project URL</code> en de <code>publishable</code> key (op oudere projecten heet die <code>anon</code>). Vul die bovenaan dit bestand in bij <code>SUPABASE_URL</code> en <code>SUPABASE_KEY</code>.</li>
+    <li>Zet het bestand online: sleep <code>index.html</code> naar <b>netlify.com/drop</b>, of gebruik <b>GitHub Pages</b>. Klaar op elk apparaat.</li>
+    <li>Open de app en log in met je e-mailadres en wachtwoord. Vanaf nu zie je op elk apparaat met dezelfde gegevens hetzelfde bord.</li>
+  </ol>
+  <p style="font-size:12px;color:var(--text-faint)">Tip: heb je je account eenmaal aangemaakt, zet dan in Supabase onder Authentication de optie voor nieuwe aanmeldingen uit, zodat niemand anders een account kan maken. Elk account ziet alleen zijn eigen bord.</p>`;
+document.getElementById("helpBtn").onclick=()=>document.getElementById("helpOverlay").classList.add("open");
+document.getElementById("helpClose").onclick=()=>document.getElementById("helpOverlay").classList.remove("open");
+document.getElementById("helpOverlay").addEventListener("click",e=>{if(e.target.id==="helpOverlay")e.currentTarget.classList.remove("open");});
+
+/* ---------------- boot ---------------- */
+(async function(){
+  if(!CONFIGURED){
+    const b=document.getElementById("loginBanner");
+    b.style.display="block";
+    b.innerHTML='Er is nog geen database gekoppeld. Vul bovenin het bestand je Supabase-gegevens in (zie de link onderaan). Tot die tijd kun je de demo bekijken.';
+    document.getElementById("demoBtn").style.display="block";
+    return;
+  }
+  if(typeof supabase==="undefined"){
+    showMsg("err","Kon de database-bibliotheek niet laden. Controleer je internetverbinding.");
+    return;
+  }
+  sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  try{
+    const {data}=await sb.auth.getSession();
+    if(data&&data.session){
+      userId=data.session.user.id;
+      const em=data.session.user.email||"";
+      userName=em.split("@")[0];
+      await enterApp("cloud");
+      return;
+    }
+  }catch(e){console.error(e);}
+  // niet ingelogd: toon loginscherm, bewaar userId bij inloggen
+  sb.auth.onAuthStateChange((_ev,session)=>{ if(session){userId=session.user.id;} });
+})();
+</script>
+</body>
+</html>
