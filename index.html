@@ -101,6 +101,14 @@ input,textarea{font-family:inherit}
 .card-check{position:absolute;top:8px;right:9px;width:17px;height:17px;cursor:pointer;accent-color:var(--accent);margin:0}
 .column.done-col{flex:0 0 205px;width:205px;background:rgba(12,8,22,0.16);border-color:rgba(255,255,255,0.05)}
 .board-divider{align-self:stretch;flex:0 0 2px;width:2px;margin:0 8px;border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.32),rgba(255,255,255,0.04))}
+.column.done-col.collapsed{flex:0 0 40px;width:40px;cursor:pointer;overflow:hidden}
+.column.done-col.collapsed:hover{background:rgba(12,8,22,0.26)}
+.done-collapsed-inner{height:100%;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 0}
+.done-expand-btn{color:var(--text-dim);font-size:15px;line-height:1}
+.done-collapsed-count{background:rgba(255,255,255,0.12);color:var(--text);border-radius:10px;font-size:11px;padding:2px 7px;font-weight:600}
+.done-collapsed-label{writing-mode:vertical-rl;transform:rotate(180deg);font-weight:700;font-size:12px;color:var(--text-dim);letter-spacing:2px}
+.done-collapse-btn{color:rgba(255,255,255,0.8);font-size:13px;line-height:1;padding:2px 4px;border-radius:5px}
+.done-collapse-btn:hover{background:rgba(0,0,0,0.22)}
 .add-card{margin:2px 8px 10px;padding:7px 9px;border-radius:8px;color:var(--text-faint);font-size:13px;text-align:left;width:calc(100% - 16px);transition:background .12s,color .12s;display:flex;align-items:center;gap:6px}
 .add-card:hover{background:rgba(255,255,255,0.06);color:var(--text)}
 .add-form{margin:2px 8px 10px}
@@ -251,7 +259,7 @@ const uid = () => Math.random().toString(36).slice(2,10);
 
 function seed(){
   const mk=(t,c)=>({id:uid(),title:t,note:"",color:c});
-  return {columns:[
+  return {noWeekend:true,columns:[
     {id:uid(),title:"DONE",color:"#4c7a34",cards:[mk("Ramazan reminder","#5fbf7a")]},
     {id:uid(),title:"Maandag",color:"#9a8a2a",cards:[
       mk("Confluence vullen [Algoritme Inventarisatie]","#4d8fe0"),
@@ -262,15 +270,11 @@ function seed(){
     {id:uid(),title:"Woensdag",color:"#2f7d5b",cards:[]},
     {id:uid(),title:"Donderdag",color:"#2b5f8a",cards:[]},
     {id:uid(),title:"Vrijdag",color:"#7a2233",cards:[]},
-    {id:uid(),title:"Zaterdag",color:"#5a3d8a",cards:[]},
-    {id:uid(),title:"Zondag",color:"#5a3d8a",cards:[]},
     {id:uid(),title:"Maandag (volgende week)",color:"#3a3550",cards:[]},
     {id:uid(),title:"Dinsdag (volgende week)",color:"#3a3550",cards:[]},
     {id:uid(),title:"Woensdag (volgende week)",color:"#3a3550",cards:[]},
     {id:uid(),title:"Donderdag (volgende week)",color:"#3a3550",cards:[]},
     {id:uid(),title:"Vrijdag (volgende week)",color:"#3a3550",cards:[]},
-    {id:uid(),title:"Zaterdag (volgende week)",color:"#3a3550",cards:[]},
-    {id:uid(),title:"Zondag (volgende week)",color:"#3a3550",cards:[]},
   ]};
 }
 
@@ -278,9 +282,57 @@ function seed(){
 const CONFIGURED = !!(SUPABASE_URL && SUPABASE_KEY);
 let sb = null, mode = null, userId = null, userName = null;
 let state = seed();
-let lastRemoteTs = null, saveTimer = null, addingInCol = null, pollTimer = null;
+let lastRemoteTs = null, saveTimer = null, addingInCol = null, pollTimer = null, rollTimer = null;
 const LS_KEY = "todo_board_v1";
 let memFallback = null;
+
+let ui={doneCollapsed:true};
+function loadUi(){try{const r=localStorage.getItem("todo_ui_v1");if(r)ui=Object.assign(ui,JSON.parse(r));}catch(e){}}
+function saveUi(){try{localStorage.setItem("todo_ui_v1",JSON.stringify(ui));}catch(e){}}
+loadUi();
+
+/* ----- datumlogica voor automatisch doorschuiven ----- */
+const DOW_NL=["Zondag","Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag"];
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function parseDate(s){const p=s.split("-").map(Number);return new Date(p[0],p[1]-1,p[2]);}
+function colByTitle(t){const tt=t.trim().toLowerCase();return state.columns.find(c=>(c.title||"").trim().toLowerCase()===tt)||null;}
+function moveAllCards(fromT,toT){const f=colByTitle(fromT),g=colByTitle(toT);if(!f||!g||f===g||!f.cards.length)return false;g.cards=g.cards.concat(f.cards);f.cards=[];return true;}
+function endOfDay(dateObj){
+  const w=dateObj.getDay();let ch=false;
+  if(w>=1&&w<=4){ch=moveAllCards(DOW_NL[w],DOW_NL[w+1])||ch;}          // ma t/m do naar volgende dag
+  else if(w===5){                                                      // vrijdag
+    ch=moveAllCards("Vrijdag","Maandag")||ch;
+    ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag"]
+      .forEach(d=>{ch=moveAllCards(d+" (volgende week)",d)||ch;});     // volgende week wordt deze week
+  }
+  return ch;                                                           // za/zo: geen actie
+}
+function applyRollovers(){
+  const today=todayStr();
+  if(!state.lastRollDate){state.lastRollDate=today;return true;}
+  if(state.lastRollDate===today)return false;
+  let cur=parseDate(state.lastRollDate),end=parseDate(today),guard=0;
+  while(cur<end&&guard<120){endOfDay(cur);cur.setDate(cur.getDate()+1);guard++;}
+  state.lastRollDate=today;return true;
+}
+function migrateRemoveWeekend(){
+  if(state.noWeekend) return false;
+  ["Zaterdag","Zondag","Zaterdag (volgende week)","Zondag (volgende week)"].forEach(t=>{
+    const col=colByTitle(t);if(!col)return;
+    if(col.cards.length){
+      const tgt=/volgende week/i.test(t)?colByTitle("Vrijdag (volgende week)"):colByTitle("Vrijdag");
+      if(tgt)tgt.cards=tgt.cards.concat(col.cards);
+    }
+    state.columns=state.columns.filter(c=>c!==col);
+  });
+  state.noWeekend=true;return true;
+}
+function focusToday(){
+  const col=colByTitle(DOW_NL[new Date().getDay()])||colByTitle("Maandag");if(!col)return;
+  const el=boardEl.querySelector('.column[data-col="'+col.id+'"]');if(!el)return;
+  const br=boardEl.getBoundingClientRect(),er=el.getBoundingClientRect();
+  boardEl.scrollLeft+=(er.left-br.left)-16;
+}
 
 /* ---------------- storage helpers ---------------- */
 function localLoad(){try{const r=localStorage.getItem(LS_KEY);return r?JSON.parse(r):null;}catch(e){return memFallback;}}
@@ -390,12 +442,19 @@ async function enterApp(m){
   }else{
     state=localLoad()||seed();
   }
+  const migrated=migrateRemoveWeekend();
+  const rolled=applyRollovers();
   render();
+  focusToday();
+  if(migrated||rolled) persist();
   startPolling();
+  clearInterval(rollTimer);
+  rollTimer=setInterval(()=>{if(applyRollovers()){persist();render();focusToday();}},60000);
 }
 
 async function doLogout(){
   clearInterval(pollTimer);
+  clearInterval(rollTimer);
   if(sb){try{await sb.auth.signOut();}catch(e){}}
   mode=null;userId=null;userName=null;
   appEl.classList.remove("open");
@@ -427,14 +486,25 @@ function findDoneColumn(){return state.columns.find(isDoneColumn)||null;}
 function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 
 function render(){
+  const prevScroll=boardEl.scrollLeft;
   destroySortables();
   boardEl.innerHTML="";
   state.columns.forEach(col=>{
     const isDone=isDoneColumn(col);
+    if(isDone&&ui.doneCollapsed){
+      const cc=document.createElement("div");
+      cc.className="column done-col collapsed";cc.dataset.col=col.id;cc.title="Klik om DONE uit te klappen";
+      cc.innerHTML=`<div class="done-collapsed-inner"><button class="done-expand-btn" aria-label="DONE uitklappen">▸</button><span class="done-collapsed-count">${col.cards.length}</span><span class="done-collapsed-label">DONE</span></div>`;
+      boardEl.appendChild(cc);
+      const dv=document.createElement("div");dv.className="board-divider";boardEl.appendChild(dv);
+      return;
+    }
     const c=document.createElement("div");
     c.className="column"+(isDone?" done-col":"");c.dataset.col=col.id;
+    const collapseBtn=isDone?`<button class="done-collapse-btn" aria-label="DONE inklappen" title="Inklappen">◂</button>`:"";
     c.innerHTML=`
       <div class="col-head" data-col="${col.id}" style="--hcolor:${col.color||'#4a4560'}">
+        ${collapseBtn}
         <input class="col-title" data-col="${col.id}" value="${esc(col.title)}" aria-label="Lijstnaam">
         <span class="col-count">${col.cards.length}</span>
         <button class="col-menu-btn" data-col="${col.id}" aria-label="Lijstmenu">⋯</button>
@@ -451,6 +521,7 @@ function render(){
   add.className="add-column";add.id="addColumn";add.textContent="＋ Voeg een lijst toe";
   boardEl.appendChild(add);
   initSortables();
+  boardEl.scrollLeft=prevScroll;
 }
 function cardEl(card,inDone){
   const d=document.createElement("div");
@@ -465,7 +536,7 @@ function initSortables(){
   document.querySelectorAll(".cards").forEach(listEl=>{
     sortables.push(Sortable.create(listEl,{group:"cards",animation:140,ghostClass:"ghost",chosenClass:"chosen",delay:120,delayOnTouchOnly:true,touchStartThreshold:6,onEnd:syncFromDom}));
   });
-  sortables.push(Sortable.create(boardEl,{group:"cols",animation:140,handle:".col-head",draggable:".column",filter:".col-title,.col-menu-btn",delay:120,delayOnTouchOnly:true,onEnd:()=>{syncFromDom();render();}}));
+  sortables.push(Sortable.create(boardEl,{group:"cols",animation:140,handle:".col-head",draggable:".column",filter:".col-title,.col-menu-btn,.done-collapse-btn",delay:120,delayOnTouchOnly:true,onEnd:()=>{syncFromDom();render();}}));
 }
 function syncFromDom(){
   const byId={};state.columns.forEach(c=>c.cards.forEach(k=>byId[k.id]=k));
@@ -593,6 +664,8 @@ colMenu.querySelectorAll("button[data-act]").forEach(b=>{
 /* ---------------- board events ---------------- */
 boardEl.addEventListener("click",e=>{
   if(e.target.closest(".card-check")) return;
+  if(e.target.closest(".done-collapse-btn")){ui.doneCollapsed=true;saveUi();render();return;}
+  if(e.target.closest(".column.done-col.collapsed")){ui.doneCollapsed=false;saveUi();render();boardEl.scrollLeft=0;return;}
   const addC=e.target.closest(".add-card");
   if(addC){addingInCol=addC.dataset.col;render();return;}
   const menuBtn=e.target.closest(".col-menu-btn");
