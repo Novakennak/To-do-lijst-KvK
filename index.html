@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>To-do bord</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPgo8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM1YTNkOGEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNiNzliZmYiLz4KPC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxyZWN0IHg9IjEiIHk9IjEiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgcng9IjciIGZpbGw9InVybCgjZykiLz4KPHBhdGggZD0iTTkgMTYuNWw0LjYgNC42TDIzIDExIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMy40IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -109,6 +110,25 @@ input,textarea{font-family:inherit}
 .done-collapsed-label{writing-mode:vertical-rl;transform:rotate(180deg);font-weight:700;font-size:12px;color:var(--text-dim);letter-spacing:2px}
 .done-collapse-btn{color:rgba(255,255,255,0.8);font-size:13px;line-height:1;padding:2px 4px;border-radius:5px}
 .done-collapse-btn:hover{background:rgba(0,0,0,0.22)}
+.card .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.tag{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:20px;border:1px solid transparent;line-height:1.55;white-space:nowrap}
+.tag-picker{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tag-chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;border:1px solid rgba(255,255,255,0.14);color:var(--text-dim);background:rgba(255,255,255,0.04);transition:all .12s}
+.tag-chip.add{border-style:dashed;color:var(--text-faint)}
+.tag-new-input{font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid var(--accent);background:#14101f;color:var(--text);outline:none;width:120px}
+.tag-row{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-bottom:1px solid var(--panel-border)}
+.tag-row-top{display:flex;align-items:center;gap:8px;width:100%}
+.tag-swatch{width:22px;height:22px;border-radius:6px;flex:0 0 auto;cursor:pointer;border:2px solid rgba(255,255,255,0.15)}
+.tag-name{flex:1;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#14101f;color:var(--text);padding:7px 10px;font-size:13px;outline:none}
+.tag-name:focus{border-color:var(--accent)}
+.tag-del{color:var(--text-faint);font-size:15px;padding:4px 8px;border-radius:6px}
+.tag-del:hover{color:#e57b7b;background:rgba(255,255,255,0.06)}
+.tag-palette{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 4px 30px}
+.tag-dot{width:20px;height:20px;border-radius:6px;cursor:pointer;border:2px solid transparent}
+.tag-dot.sel{border-color:#fff}
+.tag-add-row{display:flex;align-items:center;gap:8px;margin-top:14px}
+.tag-add-row input{flex:1;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:#14101f;color:var(--text);padding:8px 10px;font-size:13px;outline:none}
+.tag-add-row input:focus{border-color:var(--accent)}
 .add-card{margin:2px 8px 10px;padding:7px 9px;border-radius:8px;color:var(--text-faint);font-size:13px;text-align:left;width:calc(100% - 16px);transition:background .12s,color .12s;display:flex;align-items:center;gap:6px}
 .add-card:hover{background:rgba(255,255,255,0.06);color:var(--text)}
 .add-form{margin:2px 8px 10px}
@@ -182,7 +202,7 @@ input,textarea{font-family:inherit}
     <button class="btn-primary" id="loginBtn">Inloggen</button>
     <p class="login-msg" id="loginMsg"></p>
     <div class="login-alt" id="loginAlt">Nog geen account? <a id="toSignup">Account aanmaken</a></div>
-    <button class="login-demo" id="demoBtn" style="display:none">Bekijk demo zonder login</button>
+    <button class="login-demo" id="demoBtn">Bekijk demo zonder inloggen</button>
     <div class="login-help"><a id="loginHelp">Hoe stel ik de database in?</a></div>
   </div>
 </div>
@@ -194,6 +214,7 @@ input,textarea{font-family:inherit}
     <div class="spacer"></div>
     <div class="userchip" id="userchip"></div>
     <div class="status" id="status"><span class="sdot"></span><span id="statusText">Gesynchroniseerd</span></div>
+    <button class="iconbtn" id="tagsBtn" title="Tags beheren" aria-label="Tags beheren"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></button>
     <button class="iconbtn" id="helpBtn" title="Hosting &amp; database" aria-label="Help">?</button>
     <button class="iconbtn" id="logoutBtn" title="Uitloggen" aria-label="Uitloggen">⎋</button>
   </div>
@@ -207,6 +228,7 @@ input,textarea{font-family:inherit}
     <div class="field"><label for="cardTitle">Titel</label><textarea id="cardTitle" rows="2"></textarea></div>
     <div class="field"><label for="cardNote">Notitie (optioneel)</label><textarea id="cardNote" rows="3"></textarea></div>
     <div class="field"><label>Kleur</label><div class="swatches" id="cardSwatches"></div></div>
+    <div class="field"><label>Tags</label><div class="tag-picker" id="cardTagPicker"></div></div>
     <div class="modal-actions">
       <button class="btn btn-danger" id="cardDelete">Verwijderen</button>
       <div class="right">
@@ -223,6 +245,19 @@ input,textarea{font-family:inherit}
     <h3>Database &amp; synchronisatie instellen</h3>
     <div class="help-body" id="helpBody"></div>
     <div class="modal-actions"><div></div><div class="right"><button class="btn btn-primary" id="helpClose">Sluiten</button></div></div>
+  </div>
+</div>
+
+<!-- tag manager -->
+<div class="overlay" id="tagOverlay">
+  <div class="modal" role="dialog" aria-label="Tags beheren">
+    <h3>Tags beheren</h3>
+    <div id="tagList"></div>
+    <div class="tag-add-row">
+      <input id="newTagName" type="text" placeholder="Nieuwe tag…" maxlength="30">
+      <button class="btn btn-primary" id="newTagAdd">Toevoegen</button>
+    </div>
+    <div class="modal-actions"><div></div><div class="right"><button class="btn btn-primary" id="tagClose">Sluiten</button></div></div>
   </div>
 </div>
 
@@ -258,8 +293,12 @@ const HEAD_COLORS = ["#4c7a34","#9a8a2a","#a5501f","#2f7d5b","#2b5f8a","#7a2233"
 const uid = () => Math.random().toString(36).slice(2,10);
 
 function seed(){
-  const mk=(t,c)=>({id:uid(),title:t,note:"",color:c});
-  return {noWeekend:true,columns:[
+  const mk=(t,c)=>({id:uid(),title:t,note:"",color:c,tags:[]});
+  return {noWeekend:true,tags:[
+    {id:uid(),name:"Urgent",color:"#e0574d"},
+    {id:uid(),name:"Wachtend",color:"#e0c04d"},
+    {id:uid(),name:"Overleg",color:"#4d8fe0"},
+  ],columns:[
     {id:uid(),title:"DONE",color:"#4c7a34",cards:[mk("Ramazan reminder","#5fbf7a")]},
     {id:uid(),title:"Maandag",color:"#9a8a2a",cards:[
       mk("Confluence vullen [Algoritme Inventarisatie]","#4d8fe0"),
@@ -326,6 +365,18 @@ function migrateRemoveWeekend(){
     state.columns=state.columns.filter(c=>c!==col);
   });
   state.noWeekend=true;return true;
+}
+const TAG_COLORS=["#e0574d","#e0894d","#e0c04d","#5fbf7a","#3fbfb0","#4d8fe0","#6b6be0","#a86be0","#e06bb0","#8f89a8"];
+function hexToRgba(hex,a){const h=(hex||"#888888").replace('#','');const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);return `rgba(${r},${g},${b},${a})`;}
+function tagById(id){return (state.tags||[]).find(t=>t.id===id)||null;}
+function ensureTags(){
+  let ch=false;
+  if(!Array.isArray(state.tags)){
+    state.tags=[{id:uid(),name:"Urgent",color:"#e0574d"},{id:uid(),name:"Wachtend",color:"#e0c04d"},{id:uid(),name:"Overleg",color:"#4d8fe0"}];
+    ch=true;
+  }
+  state.columns.forEach(col=>col.cards.forEach(k=>{if(!Array.isArray(k.tags)){k.tags=[];ch=true;}}));
+  return ch;
 }
 function focusToday(){
   const col=colByTitle(DOW_NL[new Date().getDay()])||colByTitle("Maandag");if(!col)return;
@@ -443,10 +494,11 @@ async function enterApp(m){
     state=localLoad()||seed();
   }
   const migrated=migrateRemoveWeekend();
+  const tagged=ensureTags();
   const rolled=applyRollovers();
   render();
   focusToday();
-  if(migrated||rolled) persist();
+  if(migrated||tagged||rolled) persist();
   startPolling();
   clearInterval(rollTimer);
   rollTimer=setInterval(()=>{if(applyRollovers()){persist();render();focusToday();}},60000);
@@ -528,7 +580,9 @@ function cardEl(card,inDone){
   d.className="card";d.dataset.card=card.id;
   const strip=card.color?`<div class="strip" style="background:${card.color}"></div>`:"";
   const note=card.note?`<div class="note">${esc(card.note)}</div>`:"";
-  d.innerHTML=strip+`<div class="ctitle">${esc(card.title)}</div>`+note+
+  const tg=(card.tags||[]).map(id=>tagById(id)).filter(Boolean);
+  const pills=tg.length?`<div class="tags">${tg.map(t=>`<span class="tag" style="background:${hexToRgba(t.color,0.18)};color:${t.color};border-color:${hexToRgba(t.color,0.4)}">${esc(t.name)}</span>`).join("")}</div>`:"";
+  d.innerHTML=strip+`<div class="ctitle">${esc(card.title)}</div>`+note+pills+
     `<input type="checkbox" class="card-check"${inDone?" checked":""} title="Markeer als klaar" aria-label="Markeer als klaar">`;
   return d;
 }
@@ -586,7 +640,7 @@ function openAddForm(colId,colElement){
   const ta=form.querySelector("textarea");ta.focus();
   const commit=()=>{
     const v=ta.value.trim();
-    if(v){state.columns.find(c=>c.id===colId).cards.push({id:uid(),title:v,note:"",color:null});persist();}
+    if(v){state.columns.find(c=>c.id===colId).cards.push({id:uid(),title:v,note:"",color:null,tags:[]});persist();}
     addingInCol=v?colId:null;render();
     if(v){const again=document.querySelector(`.column[data-col="${colId}"] .add-form textarea`);if(again)again.focus();}
   };
@@ -596,7 +650,7 @@ function openAddForm(colId,colElement){
 }
 
 /* ---------------- card editor ---------------- */
-let editing=null,editColor=null;
+let editing=null,editColor=null,editTags=[];
 const cardOverlay=document.getElementById("cardOverlay");
 const cardTitle=document.getElementById("cardTitle");
 const cardNote=document.getElementById("cardNote");
@@ -612,17 +666,43 @@ function buildSwatches(container,current,onPick){
 }
 function openCardEditor(colId,cardId){
   const card=state.columns.find(c=>c.id===colId).cards.find(k=>k.id===cardId);
-  editing={colId,cardId};editColor=card.color;
+  editing={colId,cardId};editColor=card.color;editTags=[...(card.tags||[])];
   cardTitle.value=card.title;cardNote.value=card.note||"";
   buildSwatches(document.getElementById("cardSwatches"),editColor,v=>editColor=v);
+  buildCardTagPicker();
   cardOverlay.classList.add("open");cardTitle.focus();
+}
+function buildCardTagPicker(){
+  const wrap=document.getElementById("cardTagPicker");wrap.innerHTML="";
+  (state.tags||[]).forEach(t=>{
+    const sel=editTags.includes(t.id);
+    const chip=document.createElement("button");
+    chip.className="tag-chip";chip.textContent=t.name;
+    if(sel){chip.style.background=hexToRgba(t.color,0.22);chip.style.color=t.color;chip.style.borderColor=hexToRgba(t.color,0.5);}
+    chip.onclick=()=>{editTags=editTags.includes(t.id)?editTags.filter(x=>x!==t.id):editTags.concat(t.id);buildCardTagPicker();};
+    wrap.appendChild(chip);
+  });
+  const add=document.createElement("button");
+  add.className="tag-chip add";add.textContent="+ nieuwe";
+  add.onclick=()=>{
+    const inp=document.createElement("input");inp.className="tag-new-input";inp.placeholder="tagnaam…";inp.maxLength=30;
+    add.replaceWith(inp);inp.focus();
+    const commit=()=>{
+      const name=inp.value.trim();
+      if(name){const color=TAG_COLORS[(state.tags||[]).length%TAG_COLORS.length];const id=uid();state.tags=state.tags||[];state.tags.push({id,name,color});editTags.push(id);persist();}
+      buildCardTagPicker();
+    };
+    inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();commit();}if(e.key==="Escape"){buildCardTagPicker();}};
+    inp.onblur=commit;
+  };
+  wrap.appendChild(add);
 }
 function closeCardEditor(){cardOverlay.classList.remove("open");editing=null;}
 document.getElementById("cardSave").onclick=()=>{
   if(!editing)return;
   const card=state.columns.find(c=>c.id===editing.colId).cards.find(k=>k.id===editing.cardId);
   const t=cardTitle.value.trim();if(!t){closeCardEditor();return;}
-  card.title=t;card.note=cardNote.value.trim();card.color=editColor;
+  card.title=t;card.note=cardNote.value.trim();card.color=editColor;card.tags=editTags;
   persist();render();closeCardEditor();
 };
 document.getElementById("cardCancel").onclick=closeCardEditor;
@@ -714,6 +794,40 @@ create policy "eigen bord" on boards
   <p style="font-size:12px;color:var(--text-faint)">Tip: heb je je account eenmaal aangemaakt, zet dan in Supabase onder Authentication de optie voor nieuwe aanmeldingen uit, zodat niemand anders een account kan maken. Elk account ziet alleen zijn eigen bord.</p>`;
 document.getElementById("helpBtn").onclick=()=>document.getElementById("helpOverlay").classList.add("open");
 document.getElementById("helpClose").onclick=()=>document.getElementById("helpOverlay").classList.remove("open");
+
+/* ---- tag manager ---- */
+const tagOverlay=document.getElementById("tagOverlay");
+function openTagManager(){buildTagManager();tagOverlay.classList.add("open");}
+function buildTagManager(){
+  const list=document.getElementById("tagList");list.innerHTML="";
+  const tags=state.tags||[];
+  if(!tags.length){const e=document.createElement("div");e.style.cssText="color:var(--text-faint);font-size:13px;padding:6px 0";e.textContent="Nog geen tags. Voeg er hieronder een toe.";list.appendChild(e);}
+  tags.forEach(t=>{
+    const row=document.createElement("div");row.className="tag-row";
+    const top=document.createElement("div");top.className="tag-row-top";
+    const sw=document.createElement("button");sw.className="tag-swatch";sw.style.background=t.color;sw.title="Kleur wijzigen";
+    const name=document.createElement("input");name.className="tag-name";name.type="text";name.value=t.name;name.maxLength=30;
+    const del=document.createElement("button");del.className="tag-del";del.innerHTML="✕";del.title="Verwijderen";
+    const pal=document.createElement("div");pal.className="tag-palette";pal.style.display="none";
+    TAG_COLORS.forEach(c=>{const dot=document.createElement("button");dot.className="tag-dot"+(c===t.color?" sel":"");dot.style.background=c;dot.onclick=()=>{t.color=c;persist();render();buildTagManager();};pal.appendChild(dot);});
+    sw.onclick=()=>{pal.style.display=pal.style.display==="none"?"flex":"none";};
+    name.onchange=()=>{t.name=name.value.trim()||"tag";persist();render();};
+    del.onclick=()=>{if(confirm(`Tag "${t.name}" verwijderen? Hij verdwijnt van alle kaarten.`)){state.tags=state.tags.filter(x=>x!==t);state.columns.forEach(col=>col.cards.forEach(k=>{if(k.tags)k.tags=k.tags.filter(id=>id!==t.id);}));persist();render();buildTagManager();}};
+    top.appendChild(sw);top.appendChild(name);top.appendChild(del);
+    row.appendChild(top);row.appendChild(pal);list.appendChild(row);
+  });
+}
+function addNewTag(){
+  const inp=document.getElementById("newTagName");const name=inp.value.trim();if(!name)return;
+  const color=TAG_COLORS[(state.tags||[]).length%TAG_COLORS.length];
+  state.tags=state.tags||[];state.tags.push({id:uid(),name,color});
+  inp.value="";persist();render();buildTagManager();
+}
+document.getElementById("tagsBtn").onclick=openTagManager;
+document.getElementById("tagClose").onclick=()=>tagOverlay.classList.remove("open");
+document.getElementById("newTagAdd").onclick=addNewTag;
+document.getElementById("newTagName").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addNewTag();}};
+tagOverlay.addEventListener("click",e=>{if(e.target===tagOverlay)tagOverlay.classList.remove("open");});
 document.getElementById("helpOverlay").addEventListener("click",e=>{if(e.target.id==="helpOverlay")e.currentTarget.classList.remove("open");});
 
 /* ---------------- boot ---------------- */
