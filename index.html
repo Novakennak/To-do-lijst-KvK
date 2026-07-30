@@ -65,8 +65,8 @@ input,textarea{font-family:inherit}
 
 /* ---------- top bar ---------- */
 .topbar{display:flex;align-items:center;gap:12px;padding:12px 18px;height:54px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
-.brand .dot{width:10px;height:10px;border-radius:3px;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;cursor:pointer}
+.brand-icon{flex:0 0 auto;display:block;border-radius:6px}
 .topbar .spacer{flex:1}
 .userchip{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-dim);padding:5px 10px;border-radius:8px;background:rgba(0,0,0,0.2)}
 .userchip b{color:var(--text);font-weight:600}
@@ -215,7 +215,7 @@ input,textarea{font-family:inherit}
 <!-- ============ APP ============ -->
 <div class="app" id="app">
   <div class="topbar">
-    <div class="brand"><span class="dot"></span><span>To-do bord</span></div>
+    <div class="brand" id="brandHome" title="Naar vandaag"><svg class="brand-icon" viewBox="0 0 32 32" width="20" height="20"><defs><linearGradient id="brandg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a3d8a"/><stop offset="1" stop-color="#b79bff"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="7" fill="url(#brandg)"/><path d="M9 16.5l4.6 4.6L23 11" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>To-do bord</span></div>
     <div class="spacer"></div>
     <div class="userchip" id="userchip"></div>
     <div class="status" id="status"><span class="sdot"></span><span id="statusText">Gesynchroniseerd</span></div>
@@ -852,6 +852,7 @@ function addNewTag(){
   inp.value="";persist();render();buildTagManager();
 }
 document.getElementById("tagsBtn").onclick=openTagManager;
+document.getElementById("brandHome").onclick=()=>focusToday();
 document.getElementById("tagClose").onclick=()=>tagOverlay.classList.remove("open");
 document.getElementById("newTagAdd").onclick=addNewTag;
 document.getElementById("newTagName").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addNewTag();}};
