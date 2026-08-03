@@ -713,13 +713,15 @@ function buildCardTagPicker(){
   add.onclick=()=>{
     const inp=document.createElement("input");inp.className="tag-new-input";inp.placeholder="tagnaam…";inp.maxLength=30;
     add.replaceWith(inp);inp.focus();
-    const commit=()=>{
+    let handled=false;
+    const finish=(save)=>{
+      if(handled)return;handled=true;
       const name=inp.value.trim();
-      if(name){const color=TAG_COLORS[(state.tags||[]).length%TAG_COLORS.length];const id=uid();state.tags=state.tags||[];state.tags.push({id,name,color});editTags.push(id);persist();}
+      if(save&&name){const color=TAG_COLORS[(state.tags||[]).length%TAG_COLORS.length];const id=uid();state.tags=state.tags||[];state.tags.push({id,name,color});editTags.push(id);persist();}
       buildCardTagPicker();
     };
-    inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();commit();}if(e.key==="Escape"){buildCardTagPicker();}};
-    inp.onblur=commit;
+    inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();finish(true);}else if(e.key==="Escape"){e.preventDefault();finish(false);}};
+    inp.onblur=()=>finish(true);
   };
   wrap.appendChild(add);
 }
