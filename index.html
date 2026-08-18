@@ -92,7 +92,7 @@ input,textarea{font-family:inherit}
 .cards{padding:8px;overflow-y:auto;flex:1;min-height:8px;display:flex;flex-direction:column;gap:8px}
 .cards::-webkit-scrollbar{width:8px}
 .cards::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:8px}
-.card{background:var(--card);border-radius:8px;padding:9px 30px 9px 13px;font-size:13.5px;line-height:1.35;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:background .12s,transform .05s;word-break:break-word}
+.card{background:var(--card);border-radius:8px;padding:9px 30px 9px 13px;font-size:13.5px;line-height:1.35;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:background .12s,transform .05s;word-break:break-word;flex:0 0 auto}
 .card:hover{background:var(--card-hover)}
 .card:active{transform:scale(.997)}
 .card .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
@@ -671,7 +671,7 @@ function openAddForm(colId,colElement){
   const saveBtn=form.querySelector("[data-add-save]");
   saveBtn.addEventListener("mousedown",e=>e.preventDefault());   // knop mag textarea niet blurren
   saveBtn.onclick=()=>finish("continue");
-  ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();finish("continue");}else if(e.key==="Escape"){e.preventDefault();finish("cancel");}};
+  ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();finish("continue");}else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();finish("cancel");}};
   ta.onblur=()=>finish("save");
 }
 
@@ -680,6 +680,10 @@ let editing=null,editColor=null,editTags=[];
 const cardOverlay=document.getElementById("cardOverlay");
 const cardTitle=document.getElementById("cardTitle");
 const cardNote=document.getElementById("cardNote");
+[cardTitle,cardNote].forEach(el=>el.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){e.preventDefault();e.stopPropagation();closeCardEditor();}
+  else if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();e.stopPropagation();document.getElementById("cardSave").click();}
+}));
 function buildSwatches(container,current,onPick){
   container.innerHTML="";
   CARD_COLORS.forEach(c=>{
@@ -720,7 +724,7 @@ function buildCardTagPicker(){
       if(save&&name){const color=TAG_COLORS[(state.tags||[]).length%TAG_COLORS.length];const id=uid();state.tags=state.tags||[];state.tags.push({id,name,color});editTags.push(id);persist();}
       buildCardTagPicker();
     };
-    inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();finish(true);}else if(e.key==="Escape"){e.preventDefault();finish(false);}};
+    inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();finish(true);}else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();finish(false);}};
     inp.onblur=()=>finish(true);
   };
   wrap.appendChild(add);
@@ -907,6 +911,26 @@ document.getElementById("trashBtn").onclick=openTrash;
 document.getElementById("trashClose").onclick=()=>trashOverlay.classList.remove("open");
 document.getElementById("trashEmpty").onclick=emptyTrash;
 trashOverlay.addEventListener("click",e=>{if(e.target===trashOverlay)trashOverlay.classList.remove("open");});
+
+/* ---- Escape sluit het bovenste geopende venster ---- */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    if(colMenu.classList.contains("open")){closeColMenu();return;}
+    if(cardOverlay.classList.contains("open")){closeCardEditor();return;}
+    for(const id of ["helpOverlay","tagOverlay","trashOverlay"]){
+      const el=document.getElementById(id);
+      if(el&&el.classList.contains("open")){el.classList.remove("open");return;}
+    }
+    return;
+  }
+  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){
+    if(cardOverlay.classList.contains("open")){e.preventDefault();document.getElementById("cardSave").click();return;}
+    for(const id of ["tagOverlay","trashOverlay","helpOverlay"]){
+      const el=document.getElementById(id);
+      if(el&&el.classList.contains("open")){e.preventDefault();el.classList.remove("open");return;}
+    }
+  }
+});
 document.getElementById("helpOverlay").addEventListener("click",e=>{if(e.target.id==="helpOverlay")e.currentTarget.classList.remove("open");});
 
 /* ---------------- boot ---------------- */
